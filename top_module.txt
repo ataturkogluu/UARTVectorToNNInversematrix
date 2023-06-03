@@ -1,0 +1,111 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity top_module is
+  port (
+    clk     : in std_logic;
+    rst     : in std_logic;
+    din_i1  : in std_logic_vector (15 downto 0);
+    din_i2  : in std_logic_vector (15 downto 0);
+    din_i3  : in std_logic_vector (15 downto 0);
+    din_i4  : in std_logic_vector (15 downto 0);
+    inv_a   : out std_logic_vector (15 downto 0);
+    inv_b   : out std_logic_vector (15 downto 0);
+    inv_c   : out std_logic_vector (15 downto 0);
+    inv_d   : out std_logic_vector (15 downto 0)
+  );
+end top_module;
+
+architecture Behavioral of top_module is
+
+  component uart_tx is
+    generic (
+      c_clkfreq       : integer := 100_000_000;
+      c_baudrate      : integer := 115_200;
+      c_stopbit       : integer := 2
+    );
+    port(
+      clk             : in std_logic;
+      din_i1          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+      din_i2          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+      din_i3          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+      din_i4          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+      tx_start_i      : in std_logic;
+      tx_o1           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+      tx_o2           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+      tx_o3           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+      tx_o4           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+      tx_done_tick_o  : out std_logic
+    );
+  end component;
+
+  component inverse_matrix is
+    port (
+      clk     : in std_logic;
+      rst     : in std_logic;
+      mat_a   : in std_logic_vector (15 downto 0);
+      mat_b   : in std_logic_vector (15 downto 0);
+      mat_c   : in std_logic_vector (15 downto 0);
+      mat_d   : in std_logic_vector (15 downto 0);
+      inv_a   : out std_logic_vector (15 downto 0);
+      inv_b   : out std_logic_vector (15 downto 0);
+      inv_c   : out std_logic_vector (15 downto 0);
+      inv_d   : out std_logic_vector (15 downto 0)
+    );
+  end component;
+
+  signal tx_o1_temp : std_logic_vector (15 downto 0);
+  signal tx_o2_temp : std_logic_vector (15 downto 0);
+  signal tx_o3_temp : std_logic_vector (15 downto 0);
+  signal tx_o4_temp : std_logic_vector (15 downto 0);
+  signal tx_start : std_logic := '0';
+  signal tx_done_tick : std_logic;
+
+begin
+
+  uart_tx_inst : uart_tx
+    generic map (
+      c_clkfreq    => 100_000_000,
+      c_baudrate   => 115_200,
+      c_stopbit    => 2
+    )
+    port map (
+      clk            => clk,
+      din_i1         => din_i1,
+      din_i2         => din_i2,
+      din_i3         => din_i3,
+      din_i4         => din_i4,
+      tx_start_i     => tx_start,
+      tx_o1          => tx_o1_temp,
+      tx_o2          => tx_o2_temp,
+      tx_o3          => tx_o3_temp,
+      tx_o4          => tx_o4_temp,
+      tx_done_tick_o => tx_done_tick
+    );
+
+  inverse_matrix_inst : inverse_matrix
+    port map (
+      clk   => clk,
+      rst   => rst,
+      mat_a => tx_o1_temp,
+      mat_b => tx_o2_temp,
+      mat_c => tx_o3_temp,
+      mat_d => tx_o4_temp,
+      inv_a => inv_a,
+      inv_b => inv_b,
+      inv_c => inv_c,
+      inv_d => inv_d
+    );
+
+  process (clk)
+  begin
+    if rising_edge(clk) then
+      if rst = '1' then
+        tx_start <= '0';
+      elsif tx_done_tick = '1' then
+        tx_start <= '1';
+      end if;
+    end if;
+  end process;
+
+end Behavioral;

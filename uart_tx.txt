@@ -1,0 +1,103 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity uart_tx is
+  generic (
+    c_clkfreq       : integer := 100_000_000;
+    c_baudrate      : integer := 115_200;
+    c_stopbit       : integer := 2
+  );
+  port(
+    clk             : in std_logic;
+    din_i1          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+    din_i2          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+    din_i3          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+    din_i4          : in std_logic_vector (15 downto 0); -- 16-haneli vektör
+    tx_start_i      : in std_logic;
+    tx_o1           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+    tx_o2           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+    tx_o3           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+    tx_o4           : out std_logic_vector (15 downto 0); -- 16-haneli vektör
+    tx_done_tick_o  : out std_logic
+  );
+end uart_tx;
+
+architecture Behavioral of uart_tx is
+
+  constant c_bittimerlim : integer := c_clkfreq/c_baudrate;
+  constant c_stopbitlim  : integer := (c_clkfreq/c_baudrate)*c_stopbit;
+
+  type states is (S_IDLE, S_START, S_DATA, S_STOP);
+  signal state    : states := S_IDLE;
+  signal bittimer : integer range 0 to c_stopbitlim := 0;
+  signal bitcntr  : integer range 0 to 15 := 0; -- 16 bit için güncellendi
+  signal data_select : integer range 0 to 3 := 0;
+  signal shreg    : std_logic_vector (15 downto 0) := (others => '0'); -- 16 bit için güncellendi
+  signal internal_tx_o : std_logic_vector (15 downto 0);
+
+begin
+
+  p_main : process (clk)
+  begin
+    if (rising_edge(clk)) then
+      case state is
+        when S_IDLE =>
+          internal_tx_o <= (others => '0');
+          tx_done_tick_o <= '0';
+          if (tx_start_i = '1') then
+            state <= S_START;
+            case data_select is
+              when 0 => internal_tx_o <= din_i1;
+              when 1 => internal_tx_o <= din_i2;
+              when 2 => internal_tx_o <= din_i3;
+              when 3 => internal_tx_o <= din_i4;
+              when others => internal_tx_o <= (others => '0');
+            end case;
+          end if;
+
+        when S_START =>
+          if (bittimer = c_bittimerlim-1) then
+            state <= S_DATA;
+            bittimer <= 0;
+          else
+            bittimer <= bittimer + 1;
+          end if;
+
+        when S_DATA =>
+          if (bitcntr = 15) then -- 16 bit için güncellendi
+            if (bittimer = c_bittimerlim-1) then
+              bitcntr <= 0;
+              state <= S_STOP;
+              bittimer <= 0;
+            else
+              bittimer <= bittimer + 1;
+            end if;
+          else
+            if (bittimer = c_bittimerlim-1) then
+              bitcntr <= bitcntr + 1;
+              bittimer <= 0;
+            else
+              bittimer <= bittimer + 1;
+            end if;
+          end if;
+
+        when S_STOP =>
+          if (bittimer = c_stopbitlim-1) then
+            data_select <= data_select + 1;
+            state <= S_IDLE;
+            tx_done_tick_o <= '1';
+            bittimer <= 0;
+          else
+            bittimer <= bittimer + 1;
+          end if;
+
+      end case;
+    end if;
+  end process;
+
+  tx_o1 <= internal_tx_o when data_select = 0 else (others => '0');
+  tx_o2 <= internal_tx_o when data_select = 1 else (others => '0');
+  tx_o3 <= internal_tx_o when data_select = 2 else (others => '0');
+  tx_o4 <= internal_tx_o when data_select = 3 else (others => '0');
+
+end Behavioral;

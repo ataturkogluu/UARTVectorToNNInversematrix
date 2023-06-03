@@ -1,0 +1,53 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity inverse_matrix is
+    Port ( clk : in STD_LOGIC;
+           rst : in STD_LOGIC;
+           mat_a : in STD_LOGIC_VECTOR (15 downto 0);
+           mat_b : in STD_LOGIC_VECTOR (15 downto 0);
+           mat_c : in STD_LOGIC_VECTOR (15 downto 0);
+           mat_d : in STD_LOGIC_VECTOR (15 downto 0);
+           inv_a : out STD_LOGIC_VECTOR (15 downto 0);
+           inv_b : out STD_LOGIC_VECTOR (15 downto 0);
+           inv_c : out STD_LOGIC_VECTOR (15 downto 0);
+           inv_d : out STD_LOGIC_VECTOR (15 downto 0));
+end inverse_matrix;
+
+architecture Behavioral of inverse_matrix is
+    signal determinant : integer;
+    signal a, b, c, d : integer;
+    signal inv_a_int, inv_b_int, inv_c_int, inv_d_int : integer;
+begin
+    process(clk, rst)
+    begin
+        if rst = '1' then
+            inv_a <= (others => '0');
+            inv_b <= (others => '0');
+            inv_c <= (others => '0');
+            inv_d <= (others => '0');
+        elsif rising_edge(clk) then
+            a <= to_integer(unsigned(mat_a));
+            b <= to_integer(unsigned(mat_b));
+            c <= to_integer(unsigned(mat_c));
+            d <= to_integer(unsigned(mat_d));
+            determinant <= a*d - b*c;
+            if determinant /= 0 then
+                inv_a_int <= d;
+                inv_b_int <= -1*b;
+                inv_c_int <= -1*c;
+                inv_d_int <= a;
+                inv_a <= std_logic_vector(to_unsigned(inv_a_int / determinant, 16));
+                inv_b <= std_logic_vector(to_unsigned(inv_b_int / determinant, 16));
+                inv_c <= std_logic_vector(to_unsigned(inv_c_int / determinant, 16));
+                inv_d <= std_logic_vector(to_unsigned(inv_d_int / determinant, 16));
+            else
+                inv_a <= (others => '0');
+                inv_b <= (others => '0');
+                inv_c <= (others => '0');
+                inv_d <= (others => '0');
+            end if;
+        end if;
+    end process;
+end Behavioral;

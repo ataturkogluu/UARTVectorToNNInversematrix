@@ -1,0 +1,86 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity top_module_tb is
+end top_module_tb;
+
+architecture behavioral of top_module_tb is
+
+  signal clk : std_logic := '0';
+  signal rst : std_logic := '1';
+  signal din_i1, din_i2, din_i3, din_i4 : std_logic_vector(15 downto 0);
+  signal inv_a, inv_b, inv_c, inv_d : std_logic_vector(15 downto 0);
+
+  component top_module is
+    port (
+      clk     : in std_logic;
+      rst     : in std_logic;
+      din_i1  : in std_logic_vector (15 downto 0);
+      din_i2  : in std_logic_vector (15 downto 0);
+      din_i3  : in std_logic_vector (15 downto 0);
+      din_i4  : in std_logic_vector (15 downto 0);
+      inv_a   : out std_logic_vector (15 downto 0);
+      inv_b   : out std_logic_vector (15 downto 0);
+      inv_c   : out std_logic_vector (15 downto 0);
+      inv_d   : out std_logic_vector (15 downto 0)
+    );
+  end component;
+
+begin
+
+  dut : top_module
+    port map (
+      clk    => clk,
+      rst    => rst,
+      din_i1 => din_i1,
+      din_i2 => din_i2,
+      din_i3 => din_i3,
+      din_i4 => din_i4,
+      inv_a  => inv_a,
+      inv_b  => inv_b,
+      inv_c  => inv_c,
+      inv_d  => inv_d
+    );
+
+  clk_process : process
+  begin
+    while now < 100 ns loop
+      clk <= not clk;
+      wait for 10 ns;
+    end loop;
+    wait;
+  end process clk_process;
+
+  stim_process : process
+  begin
+    wait for 10 ns;
+    rst <= '0';  -- Reseti kapat
+
+    -- Girişleri ayarla (3,2,2,1)
+    din_i1 <= "0000000000000010";
+    din_i2 <= "0000000000000001";
+    din_i3 <= "0000000000000001";
+    din_i4 <= "0000000000000001";
+
+    wait until rising_edge(clk);
+
+    -- İlk 10ns boyunca '0000' değerlerini kontrol et
+    assert inv_a = "0000000000000000" report "Hata: inv_a beklenen değeri vermedi" severity error;
+    assert inv_b = "0000000000000000" report "Hata: inv_b beklenen değeri vermedi" severity error;
+    assert inv_c = "0000000000000000" report "Hata: inv_c beklenen değeri vermedi" severity error;
+    assert inv_d = "0000000000000000" report "Hata: inv_d beklenen değeri vermedi" severity error;
+
+    wait for 20 ns;
+
+    -- Sonraki 10ns boyunca '0001' değerlerini kontrol et
+    assert inv_a = "0000000000000001" report "Hata: inv_a beklenen değeri vermedi" severity error;
+    assert inv_b = "1111111111111110" report "Hata: inv_b beklenen değeri vermedi" severity error;
+    assert inv_c = "1111111111111110" report "Hata: inv_c beklenen değeri vermedi" severity error;
+    assert inv_d = "0000000000000010" report "Hata: inv_d beklenen değeri vermedi" severity error;
+
+    wait;
+
+  end process stim_process;
+
+end behavioral;
